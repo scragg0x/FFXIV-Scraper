@@ -1,5 +1,5 @@
 from werkzeug.urls import url_quote_plus
-from multiprocessing import Pool
+from gevent.pool import Pool
 import bs4
 import re
 import requests
@@ -34,13 +34,37 @@ class FFXIvScraper(Scraper):
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) Chrome/27.0.1453.116 Safari/537.36',
             }
         self.update_headers(headers)
-        self.lodestone_url = 'http://na.finalfantasyxiv.com/lodestone'
+        self.lodestone_domain = 'na.finalfantasyxiv.com'
+        self.lodestone_url = 'http://%s/lodestone' % self.lodestone_domain
+
+    def scrape_topics(self):
+        url = self.lodestone_url + '/topics/'
+        r = self.make_request(url)
+
+        news = []
+        soup = bs4.BeautifulSoup(r.content)
+        for tag in soup.select('.topics_list li'):
+            entry = {}
+            title_tag = tag.select('.topics_list_inner a')[0]
+            script = str(tag.select('script')[0])
+            entry['timestamp'] = int(re.findall(r"1[0-9]{9},", script)[0].rstrip(','))
+            entry['link'] = '//' + self.lodestone_domain + title_tag['href']
+            entry['id'] = entry['link'].split('/')[-1]
+            entry['title'] = title_tag.string.encode('utf-8').strip()
+            body = tag.select('.area_inner_cont')[0]
+            for a in body.findAll('a'):
+                if a['href'].startswith('/'):
+                    a['href'] = '//' + self.lodestone_domain + a['href']
+            entry['body'] = body.encode('utf-8').strip()
+            entry['lang'] = 'en'
+            news.append(entry)
+        return news
 
     def validate_character(self, server_name, character_name):
 
         # Search for character
         url = self.lodestone_url + '/character/?q=%s&worldname=%s' \
-              % (url_quote_plus(character_name), server_name)
+            % (url_quote_plus(character_name), server_name)
 
         r = self.make_request(url=url)
 
@@ -73,13 +97,18 @@ class FFXIvScraper(Scraper):
             return False
 
         soup = bs4.BeautifulSoup(r.content)
-        print soup.select('.player_name_brown')[0].text
 
-        if '%s (%s)' % (character_name, server_name) != soup.select('.player_name_brown')[0].text.replace("\n", ""):
+        page_name = soup.select('h2.player_name_brown > a')[0].text
+        page_server = soup.select('h2.player_name_brown > span')[0].text
+        page_name = page_name.strip()
+        page_server = page_server.strip()[1:-1]
+
+        if page_name != character_name or page_server != server_name:
+            print "%s %s" % (page_name, page_server)
             print "Name mismatch"
             return False
 
-        return soup.select('.txt_selfintroduction')[0].text.strip() == verification_code
+        return lodestone_id if soup.select('.txt_selfintroduction')[0].text.strip() == verification_code else False
 
     def scrape_character(self, lodestone_id):
         character_url = self.lodestone_url + '/character/%s/' % lodestone_id
@@ -95,7 +124,10 @@ class FFXIvScraper(Scraper):
             raise DoesNotExist()
 
         # Name & Server
-        name, server = soup.select('.player_name_brown')[0].text.rsplit(' ', 1)
+        name = soup.select('h2.player_name_brown > a')[0].text
+        server = soup.select('h2.player_name_brown > span')[0].text
+        name = name.strip()
+        server = server.strip()
 
         # Race, Tribe, Gender
         race, clan_gender = soup.select('.chara_profile_title')[0].text.split(' / ')
@@ -185,7 +217,7 @@ class FFXIvScraper(Scraper):
                     slot_name = slot_name.replace('Two--Handed ', '')
                     slot_name = slot_name.replace("'s Arm", '')
                     slot_name = slot_name.replace("'s Primary Tool", '')
-                    #current_class = FFXIV_CLASSES[slot_name]
+                    current_class = slot_name
 
                 equipment.append(item_name)
             else:
@@ -219,7 +251,7 @@ class FFXIvScraper(Scraper):
 
             'current_class': current_class,
             'current_equipment': equipment,
-            }
+        }
 
         return data
 
@@ -242,10 +274,35 @@ class FFXIvScraper(Scraper):
                 'points': int(tag.select('.achievement_point')[0].text),
                 'date': int(re.findall(r'ldst_strftime\((\d+),', tag.find('script').text)[0])
             }
-            achievements[achievement.id] = achievement
+            achievements[achievement['id']] = achievement
         return achievements
 
     def scrape_free_company(self, lodestone_id):
+        url = self.lodestone_url + '/freecompany/%s/' % lodestone_id
+        html = self.make_request(url).content
+
+        if 'The page you are searching for has either been removed,' in html:
+            raise DoesNotExist()
+
+        soup = bs4.BeautifulSoup(html)
+
+        try:
+            tag = soup.select('.vm')[0].contents[2][1:-1]
+            formed = soup.select('.table_style2 td script')[0].text
+
+            if formed:
+                m = re.search(r'ldst_strftime\(([0-9]+),', formed)
+                if m.group(1):
+                    formed = m.group(1)
+            else:
+                formed = None
+
+            slogan = soup.select('.table_style2 td')[3].contents
+            slogan = ''.join(x.encode('utf-8').strip() for x in slogan) if slogan else ""
+
+        except IndexError:
+            raise DoesNotExist()
+
         url = self.lodestone_url + '/freecompany/%s/member' % lodestone_id
 
         html = self.make_request(url).content
@@ -256,8 +313,10 @@ class FFXIvScraper(Scraper):
         soup = bs4.BeautifulSoup(html)
 
         try:
-            name = soup.select('.ic_freecompany_box span')[0].text
-            server = soup.select('.ic_freecompany_box span')[1].text[1:-1]
+            name = soup.select('.ic_freecompany_box span')[1].text
+            server = soup.select('.ic_freecompany_box span')[2].text[1:-1]
+            grand_company = soup.select('.crest_id')[0].contents[0].strip()
+            friendship = soup.select('.friendship_color')[0].text[1:-1]
         except IndexError:
             raise DoesNotExist()
 
@@ -280,8 +339,8 @@ class FFXIvScraper(Scraper):
                     'rank': {
                         'id': int(re.findall('class/(\d+?)\.png', tag.find('img')['src'])[0]),
                         'name': tag.select('.fc_member_status')[0].text.strip(),
-                        },
-                    }
+                    },
+                }
 
                 if member['rank']['id'] == 0:
                     member['leader'] = True
@@ -303,6 +362,11 @@ class FFXIvScraper(Scraper):
 
         return {
             'name': name,
-            'server': 'ffxiv/' + server.lower(),
+            'server': server.lower(),
+            'grand_company': grand_company,
+            'friendship': friendship,
             'roster': roster,
-            }
+            'slogan': slogan,
+            'tag': tag,
+            'formed': formed
+        }
