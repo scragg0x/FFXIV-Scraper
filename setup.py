@@ -5,6 +5,9 @@ DESCRIPTION = "FFXIV Lodestone Scraper"
 with open('README.md') as f:
     LONG_DESCRIPTION = f.read()
 
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 VERSION = '0.1.0'
 
 CLASSIFIERS = [
@@ -18,6 +21,7 @@ CLASSIFIERS = [
 setup(name='ffxivscraper',
     version=VERSION,
     packages=find_packages(),
+    install_requires=required,
     scripts=['lodestoner'],
     author='Stanislav Vishnevskiy',
     author_email='vishnevskiy@gmail.com',
