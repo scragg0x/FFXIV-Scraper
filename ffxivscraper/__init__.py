@@ -201,6 +201,16 @@ class FFXIvScraper(Scraper):
             except AttributeError:
                 pass
 
+        # Minions
+        minions = []
+        for tag in soup.find(text='Minions').parent.parent.select('a'):
+            minions.append(tag['title'])
+
+        # Mounts
+        mounts = []
+        for tag in soup.find(text='Mounts').parent.parent.select('a'):
+            mounts.append(tag['title'])
+
         # Equipment
         current_class = None
         equipment = []
@@ -248,6 +258,9 @@ class FFXIvScraper(Scraper):
             'stats': stats,
 
             'achievements': self.scrape_achievements(lodestone_id),
+
+            'minions': minions,
+            'mounts': mounts,
 
             'current_class': current_class,
             'current_equipment': equipment,
