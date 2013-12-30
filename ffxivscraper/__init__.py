@@ -98,8 +98,8 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(r.content)
 
-        page_name = soup.select('h2.player_name_brown > a')[0].text
-        page_server = soup.select('h2.player_name_brown > span')[0].text
+        page_name = soup.select('.player_name_txt h2 a')[0].text
+        page_server = soup.select('.player_name_txt h2 span')[0].text
         page_name = page_name.strip()
         page_server = page_server.strip()[1:-1]
 
@@ -124,10 +124,8 @@ class FFXIvScraper(Scraper):
             raise DoesNotExist()
 
         # Name & Server
-        name = soup.select('h2.player_name_brown > a')[0].text
-        server = soup.select('h2.player_name_brown > span')[0].text
-        name = name.strip()
-        server = server.strip()
+        name = soup.select('.player_name_txt h2 a')[0].text.strip()
+        server = soup.select('.player_name_txt h2 span')[0].text.strip()[1:-1]
 
         # Race, Tribe, Gender
         race, clan_gender = soup.select('.chara_profile_title')[0].text.split(' / ')
@@ -235,7 +233,7 @@ class FFXIvScraper(Scraper):
 
         data = {
             'name': name,
-            'server': server[1:-1],
+            'server': server,
 
             'race': race,
             'clan': clan,
@@ -243,7 +241,7 @@ class FFXIvScraper(Scraper):
 
             'legacy': len(soup.select('.bt_legacy_history')) > 0,
 
-            'avatar_url': soup.select('.thumb_cont_black_40.mr10.brd_black img')[0]['src'],
+            'avatar_url': soup.select('.player_name_txt .player_name_thumb img')[0]['src'],
             'portrait_url': soup.select('.bg_chara_264 img')[0]['src'],
 
             'nameday': nameday,
@@ -299,22 +297,20 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(html)
 
-        try:
-            tag = soup.select('.vm')[0].contents[2][1:-1]
-            formed = soup.select('.table_style2 td script')[0].text
+        tag = soup.select('.vm')[0].contents[1].text[1:-1]
+        formed = soup.select('.table_style2 td script')[0].text
 
-            if formed:
-                m = re.search(r'ldst_strftime\(([0-9]+),', formed)
-                if m.group(1):
-                    formed = m.group(1)
-            else:
-                formed = None
+        crest = [x['src'] for x in soup.find('div', attrs={'class': 'ic_crest_64'}).findChildren('img')]
 
-            slogan = soup.select('.table_style2 td')[3].contents
-            slogan = ''.join(x.encode('utf-8').strip() for x in slogan) if slogan else ""
+        if formed:
+            m = re.search(r'ldst_strftime\(([0-9]+),', formed)
+            if m.group(1):
+                formed = m.group(1)
+        else:
+            formed = None
 
-        except IndexError:
-            raise DoesNotExist()
+        slogan = soup.select('.table_style2 td')[3].contents
+        slogan = ''.join(x.encode('utf-8').strip() for x in slogan) if slogan else ""
 
         url = self.lodestone_url + '/freecompany/%s/member' % lodestone_id
 
@@ -381,5 +377,6 @@ class FFXIvScraper(Scraper):
             'roster': roster,
             'slogan': slogan,
             'tag': tag,
-            'formed': formed
+            'formed': formed,
+            'crest': crest
         }
