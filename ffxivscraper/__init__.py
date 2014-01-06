@@ -11,6 +11,23 @@ FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense', 'Attack Power', 'Skill Speed
                'Spell Speed', 'Morale']
 
 
+def strip_tags(html, invalid_tags):
+    soup = bs4.BeautifulSoup(html)
+
+    for tag in soup.findAll(True):
+        if tag.name in invalid_tags:
+            s = ""
+
+            for c in tag.contents:
+                if not isinstance(c, bs4.NavigableString):
+                    c = strip_tags(unicode(c), invalid_tags)
+                s += unicode(c)
+
+            tag.replaceWith(s)
+
+    return soup
+
+
 class DoesNotExist(Exception):
     pass
 
@@ -297,7 +314,8 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(html)
 
-        fc_tag = soup.select('.vm')[0].contents[-1][1:-1]
+        fc_tag = strip_tags(soup.select('.vm')[0].contents[-1].encode('utf-8'), ['br']).text
+        fc_tag = fc_tag[1:-1] if fc_tag else ''
         formed = soup.select('.table_style2 td script')[0].text
 
         crest = [x['src'] for x in soup.find('div', attrs={'class': 'ic_crest_64'}).findChildren('img')]
