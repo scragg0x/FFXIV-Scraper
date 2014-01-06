@@ -297,7 +297,7 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(html)
 
-        fc_tag = soup.select('.vm')[0].contents[-1].text[1:-1]
+        fc_tag = soup.select('.vm')[0].contents[-1][1:-1]
         formed = soup.select('.table_style2 td script')[0].text
 
         crest = [x['src'] for x in soup.find('div', attrs={'class': 'ic_crest_64'}).findChildren('img')]
