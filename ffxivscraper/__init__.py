@@ -239,9 +239,11 @@ class FFXIvScraper(Scraper):
                 slot_name = item_tag.next_sibling.string.strip()
 
                 if i == 0:
-                    slot_name = slot_name.replace('Two--Handed ', '')
+                    slot_name = slot_name.replace('Two-handed ', '')
+                    slot_name = slot_name.replace('One-handed ', '')
                     slot_name = slot_name.replace("'s Arm", '')
                     slot_name = slot_name.replace("'s Primary Tool", '')
+                    slot_name = slot_name.replace("'s Grimoire", '')
                     current_class = slot_name
 
                 equipment.append(item_name)
