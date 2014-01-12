@@ -165,20 +165,21 @@ class FFXIvScraper(Scraper):
         # Grand Company
         try:
             grand_company = soup.find(text=re.compile('Grand Company')).parent.select('.txt_yellow')[0].text.split('/')
-            #grand_company = {
-            #    'id': FFXIV_GRAND_COMPANIES[grand_company[0]],
-            #    'rank': FFXIV_GRAND_COMPANY_RANKS.index(re.sub('(Flame|Storm|Serpent)\s', '', grand_company[1])),
-            #}
         except (AttributeError, IndexError):
             grand_company = None
 
         # Free Company
         try:
-            free_company = soup.find_all(text=re.compile('Free Company'))[-1].parent.select('a.txt_yellow')[0]
-            free_company = {
-                'id': re.findall('(\d+)', free_company['href'])[0],
-                'name': free_company.text,
-                }
+            free_company = None
+            for elem in soup.select('.chara_profile_list li'):
+                if 'Free Company' in elem.text:
+                    fc = elem.select('a.txt_yellow')[0]
+                    free_company = {
+                        'id': re.findall('(\d+)', fc['href'])[0],
+                        'name': fc.text,
+                        'crest': [x['src'] for x in elem.find('div', attrs={'class': 'ic_crest_32'}).findChildren('img')]
+                    }
+                    break
         except (AttributeError, IndexError):
             free_company = None
 
