@@ -49,7 +49,7 @@ class FFXIvScraper(Scraper):
         headers = {
             'Accept-Language': 'en-us,en;q=0.5',
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) Chrome/27.0.1453.116 Safari/537.36',
-            }
+        }
         self.update_headers(headers)
         self.lodestone_domain = 'na.finalfantasyxiv.com'
         self.lodestone_url = 'http://%s/lodestone' % self.lodestone_domain
@@ -156,7 +156,7 @@ class FFXIvScraper(Scraper):
         nameday = {
             'sun': int(nameday[0]),
             'moon': (int(nameday[1]) * 2) - (0 if 'Umbral' in nameday_text else 1),
-            }
+        }
         guardian = soup.find(text='Guardian ').parent.parent.select('td .txt_yellow')[-1].text
 
         # City-state
