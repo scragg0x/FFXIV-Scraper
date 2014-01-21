@@ -2,6 +2,7 @@
 
 ## Install
 ```
+# Linux global install
 sudo python setup.py install
 ```
 
