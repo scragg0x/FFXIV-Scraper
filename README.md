@@ -19,4 +19,4 @@ Usage:
 
 ## Authors
 - Stanislav Vishnevskiy (http://guildwork.com)
-- Matthew Scragg (http://www.ffxiah.com)
+- Matthew Scragg (http://www.ffxivpro.com)
