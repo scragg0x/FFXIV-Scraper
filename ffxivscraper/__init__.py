@@ -231,15 +231,13 @@ class FFXIvScraper(Scraper):
         current_class = None
         equipment = []
 
-        for i, tag in enumerate(soup.select('.ic_reflection_box')):
+        for i, tag in enumerate(soup.select('.item_name_right')):
             item_tags = tag.select('.item_name')
 
             if item_tags:
-                item_tag = item_tags[0]
-                item_name = item_tag.text
-                slot_name = item_tag.next_sibling.string.strip()
 
                 if i == 0:
+                    slot_name = tag.select('.category_name')[0].string.strip()
                     slot_name = slot_name.replace('Two-handed ', '')
                     slot_name = slot_name.replace('One-handed ', '')
                     slot_name = slot_name.replace("'s Arm", '')
@@ -247,7 +245,7 @@ class FFXIvScraper(Scraper):
                     slot_name = slot_name.replace("'s Grimoire", '')
                     current_class = slot_name
 
-                equipment.append(item_name)
+                equipment.append(item_tags[0].text)
             else:
                 equipment.append(None)
 
