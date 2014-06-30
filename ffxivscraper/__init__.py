@@ -8,7 +8,7 @@ FFXIV_ELEMENTS = ['fire', 'ice', 'wind', 'earth', 'thunder', 'water']
 
 FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense', 'Attack Power', 'Skill Speed',
                'Slashing', 'Piercing', 'Blunt', 'Attack Magic Potency', 'Healing Magic Potency',
-               'Spell Speed', 'Morale']
+               'Spell Speed', 'Morale', 'Accuracy', 'Critical Hit Rate', 'Determination']
 
 
 def strip_tags(html, invalid_tags):
@@ -213,7 +213,7 @@ class FFXIvScraper(Scraper):
             stats[element] = int(soup.select('.%s .val' % element)[0].text)
         for prop in FFXIV_PROPS:
             try:
-                stats[prop] = int(soup.find(text=prop).parent.parent.select('.right')[0].text)
+                stats[prop] = int(soup.find(text=prop, class_='left').parent.parent.select('.right')[0].text)
             except AttributeError:
                 pass
 
