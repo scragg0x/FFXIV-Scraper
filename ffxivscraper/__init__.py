@@ -145,10 +145,8 @@ class FFXIvScraper(Scraper):
         server = soup.select('.player_name_txt h2 span')[0].text.strip()[1:-1]
 
         # Race, Tribe, Gender
-        race, clan_gender = soup.select('.chara_profile_title')[0].text.split(' / ')
-        clan_gender = clan_gender.split()
-        clan = ' '.join(clan_gender[0:-1])
-        gender = 'male' if clan_gender[-1] == u'\u2642' else 'female'
+        race, clan, gender = soup.select('.chara_profile_title')[0].text.split(' / ')
+        gender = 'male' if gender[-1] == u'\u2642' else 'female'
 
         # Nameday & Guardian
         nameday_text = soup.find(text='Nameday ').parent.parent.select('td .txt_yellow')[-1].text
