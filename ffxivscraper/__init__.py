@@ -140,9 +140,14 @@ class FFXIvScraper(Scraper):
         if lodestone_id not in soup.select('.tab_com_chara_header_profile.tab_left a')[0]['href']:
             raise DoesNotExist()
 
-        # Name & Server
+        # Name, Server, Title
         name = soup.select('.player_name_txt h2 a')[0].text.strip()
         server = soup.select('.player_name_txt h2 span')[0].text.strip()[1:-1]
+
+        try:
+            title = soup.select('.chara_title')[0].text.strip()
+        except (AttributeError, IndexError):
+            title = None
 
         # Race, Tribe, Gender
         race, clan, gender = soup.select('.chara_profile_title')[0].text.split(' / ')
@@ -250,6 +255,7 @@ class FFXIvScraper(Scraper):
         data = {
             'name': name,
             'server': server,
+            'title': title,
 
             'race': race,
             'clan': clan,
