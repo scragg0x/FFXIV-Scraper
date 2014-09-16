@@ -143,10 +143,11 @@ class FFXIvScraper(Scraper):
         # Name, Server, Title
         name = soup.select('.player_name_txt h2 a')[0].text.strip()
         server = soup.select('.player_name_txt h2 span')[0].text.strip()[1:-1]
-	try:
-		title = soup.select('.chara_title')[0].text.strip()
-	except (AttributeError, IndexError):
-		title = None
+
+        try:
+            title = soup.select('.chara_title')[0].text.strip()
+        except (AttributeError, IndexError):
+            title = None
 
         # Race, Tribe, Gender
         race, clan, gender = soup.select('.chara_profile_title')[0].text.split(' / ')
@@ -254,7 +255,7 @@ class FFXIvScraper(Scraper):
         data = {
             'name': name,
             'server': server,
-	    'title': title,
+            'title': title,
 
             'race': race,
             'clan': clan,
