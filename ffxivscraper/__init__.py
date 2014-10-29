@@ -54,7 +54,7 @@ class FFXIvScraper(Scraper):
         headers = {
             'Accept-Language': 'en-us,en;q=0.5',
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) Chrome/27.0.1453.116 Safari/537.36',
-        }
+            }
         self.update_headers(headers)
         self.lodestone_domain = 'na.finalfantasyxiv.com'
         self.lodestone_url = 'http://%s/lodestone' % self.lodestone_domain
@@ -86,7 +86,7 @@ class FFXIvScraper(Scraper):
 
         # Search for character
         url = self.lodestone_url + '/character/?q=%s&worldname=%s' \
-            % (url_quote_plus(character_name), server_name)
+                                   % (url_quote_plus(character_name), server_name)
 
         r = self.make_request(url=url)
 
@@ -100,7 +100,7 @@ class FFXIvScraper(Scraper):
                 return {
                     'lodestone_id': re.findall(r'(\d+)', tag['href'])[0],
                     'name': str(tag.string),
-                }
+                    }
 
         return None
 
@@ -164,7 +164,7 @@ class FFXIvScraper(Scraper):
         nameday = {
             'sun': int(nameday[0]),
             'moon': (int(nameday[1]) * 2) - (0 if 'Umbral' in nameday_text else 1),
-        }
+            }
         guardian = soup.find(text='Guardian').parent.parent.select('dd')[0].text
 
         # City-state
@@ -289,7 +289,7 @@ class FFXIvScraper(Scraper):
 
             'current_class': current_class,
             'current_equipment': equipment,
-        }
+            }
 
         return data
 
@@ -346,8 +346,35 @@ class FFXIvScraper(Scraper):
         else:
             formed = None
 
-        slogan = soup.select('.table_style2 td')[3].contents
-        slogan = ''.join(x.encode('utf-8').strip() for x in slogan) if slogan else ""
+        slogan = soup.find(text='Company Slogan').parent.parent.select('td')[0].contents
+        slogan = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in slogan) if slogan else ""
+
+        active = soup.find(text='Active').parent.parent.select('td')[0].text.strip()
+        recruitment = soup.find(text='Recruitment').parent.parent.select('td')[0].text.strip()
+        active_members = soup.find(text='Active Members').parent.parent.select('td')[0].text.strip()
+        rank = soup.find(text='Rank').parent.parent.select('td')[0].text.strip()
+
+        focus = []
+        for f in soup.select('.focus_icon li img'):
+            on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
+            focus.append(dict(on=on,
+                              name=f.get('title'),
+                              icon=f.get('src')))
+
+        seeking = []
+        for f in soup.select('.roles_icon li img'):
+            on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
+            seeking.append(dict(on=on,
+                                name=f.get('title'),
+                                icon=f.get('src')))
+
+        estate = {}
+        estate_block = soup.find(text='Estate Profile').parent.parent
+        estate['name'] = estate_block.select('.txt_yellow')[0].text
+        estate['address'] = estate_block.select('p.mb10')[0].text
+
+        greeting = estate_block.select('p.mb10')[1].contents
+        estate['greeting'] = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in greeting) if greeting else ""
 
         url = self.lodestone_url + '/freecompany/%s/member' % lodestone_id
 
@@ -359,8 +386,8 @@ class FFXIvScraper(Scraper):
         soup = bs4.BeautifulSoup(html)
 
         try:
-            name = soup.select('.ic_freecompany_box span')[1].text
-            server = soup.select('.ic_freecompany_box span')[2].text[1:-1]
+            name = soup.select('.ic_freecompany_box .pt4')[0].text
+            server = soup.select('.ic_freecompany_box .crest_id span')[-1].text[1:-1]
             grand_company = soup.select('.crest_id')[0].contents[0].strip()
             friendship = soup.select('.friendship_color')[0].text[1:-1]
         except IndexError:
@@ -385,8 +412,8 @@ class FFXIvScraper(Scraper):
                     'rank': {
                         'id': int(re.findall('class/(\d+?)\.png', tag.find('img')['src'])[0]),
                         'name': tag.select('.fc_member_status')[0].text.strip(),
-                    },
-                }
+                        },
+                    }
 
                 if member['rank']['id'] == 0:
                     member['leader'] = True
@@ -415,5 +442,12 @@ class FFXIvScraper(Scraper):
             'slogan': slogan,
             'tag': fc_tag,
             'formed': formed,
-            'crest': crest
+            'crest': crest,
+            'active': active,
+            'recruitment': recruitment,
+            'active_members': active_members,
+            'rank': rank,
+            'focus': focus,
+            'seeking': seeking,
+            'estate': estate
         }
