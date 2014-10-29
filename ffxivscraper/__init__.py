@@ -368,13 +368,16 @@ class FFXIvScraper(Scraper):
                                 name=f.get('title'),
                                 icon=f.get('src')))
 
-        estate = {}
         estate_block = soup.find(text='Estate Profile').parent.parent
-        estate['name'] = estate_block.select('.txt_yellow')[0].text
-        estate['address'] = estate_block.select('p.mb10')[0].text
+        if estate_block.select('td')[0].text.strip() != 'No Estate or Plot':
+            estate = dict()
+            estate['name'] = estate_block.select('.txt_yellow')[0].text
+            estate['address'] = estate_block.select('p.mb10')[0].text
 
-        greeting = estate_block.select('p.mb10')[1].contents
-        estate['greeting'] = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in greeting) if greeting else ""
+            greeting = estate_block.select('p.mb10')[1].contents
+            estate['greeting'] = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in greeting) if greeting else ""
+        else:
+            estate = None
 
         url = self.lodestone_url + '/freecompany/%s/member' % lodestone_id
 
