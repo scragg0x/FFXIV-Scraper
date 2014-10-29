@@ -3,12 +3,17 @@ from gevent.pool import Pool
 import bs4
 import re
 import requests
+import math
 
 FFXIV_ELEMENTS = ['fire', 'ice', 'wind', 'earth', 'thunder', 'water']
 
-FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense', 'Attack Power', 'Skill Speed',
-               'Slashing', 'Piercing', 'Blunt', 'Attack Magic Potency', 'Healing Magic Potency',
-               'Spell Speed', 'Morale', 'Accuracy', 'Critical Hit Rate', 'Determination']
+FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense',
+               'Attack Power', 'Skill Speed',
+               'Slashing', 'Piercing', 'Blunt',
+               'Attack Magic Potency', 'Healing Magic Potency', 'Spell Speed',
+               'Morale',
+               'Accuracy', 'Critical Hit Rate', 'Determination',
+               'Craftsmanship', 'Control']
 
 
 def strip_tags(html, invalid_tags):
@@ -154,27 +159,27 @@ class FFXIvScraper(Scraper):
         gender = 'male' if gender.strip('\n\t')[-1] == u'\u2642' else 'female'
 
         # Nameday & Guardian
-        nameday_text = soup.find(text='Nameday ').parent.parent.select('td .txt_yellow')[-1].text
+        nameday_text = soup.find(text='Nameday').parent.parent.select('dd')[0].text
         nameday = re.findall('(\d+)', nameday_text)
         nameday = {
             'sun': int(nameday[0]),
             'moon': (int(nameday[1]) * 2) - (0 if 'Umbral' in nameday_text else 1),
         }
-        guardian = soup.find(text='Guardian ').parent.parent.select('td .txt_yellow')[-1].text
+        guardian = soup.find(text='Guardian').parent.parent.select('dd')[0].text
 
         # City-state
-        citystate = soup.find(text=re.compile('City-state')).parent.select('.txt_yellow')[0].text
+        citystate = soup.find(text=re.compile('City-state')).parent.parent.select('dd.txt_name')[0].text
 
         # Grand Company
         try:
-            grand_company = soup.find(text=re.compile('Grand Company')).parent.select('.txt_yellow')[0].text.split('/')
+            grand_company = soup.find(text=re.compile('Grand Company')).parent.parent.select('.txt_name')[0].text.split('/')
         except (AttributeError, IndexError):
             grand_company = None
 
         # Free Company
         try:
             free_company = None
-            for elem in soup.select('.chara_profile_list li'):
+            for elem in soup.select('.chara_profile_box_info'):
                 if 'Free Company' in elem.text:
                     fc = elem.select('a.txt_yellow')[0]
                     free_company = {
@@ -288,8 +293,9 @@ class FFXIvScraper(Scraper):
 
         return data
 
-    def scrape_achievements(self, lodestone_id):
-        url = self.lodestone_url + '/character/%s/achievement/kind/13/?filter=2' % lodestone_id
+    def scrape_achievements(self, lodestone_id, page=1):
+        url = 'http://na.finalfantasyxiv.com/lodestone/character/%s/achievement/?filter=2&page=%s' \
+              % (lodestone_id, page)
 
         r = self.make_request(url)
 
@@ -299,15 +305,23 @@ class FFXIvScraper(Scraper):
         soup = bs4.BeautifulSoup(r.content)
 
         achievements = {}
-        for tag in soup.select('.achievement_cnts li'):
+        for tag in soup.select('.achievement_list li'):
             achievement = {
-                'id': int(tag.select('.bt_more')[0]['href'].split('/')[-2]),
+                'id': int(tag.select('.ic_achievement a')[0]['href'].split('/')[-2]),
                 'icon': tag.select('.ic_achievement img')[0]['src'],
-                'name': tag.select('.achievement_name')[0].text,
-                'points': int(tag.select('.achievement_point')[0].text),
+                'name': tag.select('.achievement_txt a')[0].text,
                 'date': int(re.findall(r'ldst_strftime\((\d+),', tag.find('script').text)[0])
             }
             achievements[achievement['id']] = achievement
+
+        try:
+            pages = int(math.ceil(float(soup.select('.pagination .total')[0].text) / 20))
+        except (ValueError, IndexError):
+            pages = 0
+
+        if pages > page:
+            achievements.update(self.scrape_achievements(lodestone_id, page + 1))
+
         return achievements
 
     def scrape_free_company(self, lodestone_id):
