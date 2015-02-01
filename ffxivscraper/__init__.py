@@ -159,7 +159,7 @@ class FFXIvScraper(Scraper):
         gender = 'male' if gender.strip('\n\t')[-1] == u'\u2642' else 'female'
 
         # Nameday & Guardian
-        nameday_text = soup.find(text='Nameday').parent.parent.select('dd')[0].text
+        nameday_text = soup.find(text='Nameday').parent.parent.select('dd')[1].text
         nameday = re.findall('(\d+)', nameday_text)
         nameday = {
             'sun': int(nameday[0]),
