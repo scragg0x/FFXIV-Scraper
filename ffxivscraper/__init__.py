@@ -204,11 +204,13 @@ class FFXIvScraper(Scraper):
             if level == '-':
                 level = 0
                 exp = 0
+                exp_next = 0
             else:
                 level = int(level)
                 exp = int(tag.next_sibling.next_sibling.next_sibling.next_sibling.text.split(' / ')[0])
+                exp_next = int(tag.next_sibling.next_sibling.next_sibling.next_sibling.text.split(' / ')[1])
 
-            classes[class_] = dict(level=level, exp=exp)
+            classes[class_] = dict(level=level, exp=exp, exp_next=exp_next)
 
         # Stats
         stats = {}
