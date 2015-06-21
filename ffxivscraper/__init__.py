@@ -5,7 +5,7 @@ import re
 import requests
 import math
 
-FFXIV_ELEMENTS = ['fire', 'ice', 'wind', 'earth', 'thunder', 'water']
+FFXIV_ELEMENTS = ['fire', 'ice', 'wind', 'earth', 'lightning', 'water']
 
 FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense',
                'Attack Power', 'Skill Speed',
@@ -143,6 +143,8 @@ class FFXIvScraper(Scraper):
         soup = bs4.BeautifulSoup(r.content)
 
         if lodestone_id not in soup.select('.tab_com_chara_header_profile.tab_left a')[0]['href']:
+        character_link = '/lodestone/character/%s/' % lodestone_id
+        if character_link not in soup.select('.player_name_thumb a')[0]['href']:
             raise DoesNotExist()
 
         # Name, Server, Title
@@ -220,7 +222,10 @@ class FFXIvScraper(Scraper):
             except IndexError:
                 pass
         for element in FFXIV_ELEMENTS:
-            stats[element] = int(soup.select('.%s .val' % element)[0].text)
+            tooltip = 'Decreases %s-aspected damage.' % element
+            ele_value = int(soup.find(title=tooltip).parent.select('.val')[0].text)
+            stats[element] = ele_value
+
         for prop in FFXIV_PROPS:
             try:
                 stats[prop] = int(soup.find(text=prop, class_='left').parent.parent.select('.right')[0].text)
@@ -239,7 +244,7 @@ class FFXIvScraper(Scraper):
 
         # Equipment
         current_class = None
-        equipment = []
+        parsed_equipment = []
 
         for i, tag in enumerate(soup.select('.item_name_right')):
             item_tags = tag.select('.item_name')
@@ -255,9 +260,12 @@ class FFXIvScraper(Scraper):
                     slot_name = slot_name.replace("'s Grimoire", '')
                     current_class = slot_name
 
-                equipment.append(item_tags[0].text)
+                # strip out all the extra \t and \n it likes to throw in
+                parsed_equipment.append(' '.join(item_tags[0].text.split()))
             else:
-                equipment.append(None)
+                parsed_equipment.append(None)
+
+        equipment = parsed_equipment[:len(parsed_equipment)//2]
 
         data = {
             'name': name,
