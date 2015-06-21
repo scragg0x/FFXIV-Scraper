@@ -141,10 +141,7 @@ class FFXIvScraper(Scraper):
             raise DoesNotExist()
 
         soup = bs4.BeautifulSoup(r.content)
-
-        if lodestone_id not in soup.select('.tab_com_chara_header_profile.tab_left a')[0]['href']:
-          raise DoesNotExist()
-          
+        
         character_link = '/lodestone/character/%s/' % lodestone_id
         if character_link not in soup.select('.player_name_thumb a')[0]['href']:
             raise DoesNotExist()
