@@ -215,7 +215,15 @@ class FFXIvScraper(Scraper):
 
         # Stats
         stats = {}
-        for attribute in ('hp', 'mp', 'cp', 'tp', 'str', 'dex', 'vit', 'int', 'mnd', 'pie'):
+
+        images = soup.select("img")
+
+        for img in images:
+            m = re.search('/images/character/attribute_([a-z]{3})', img.get('src'))
+            if m and m.group(1) and m.group(1) in ('str', 'dex', 'vit', 'int', 'mnd', 'pie'):
+                stats[m.group(1)] = img.parent.select("span")[0].text
+
+        for attribute in ('hp', 'mp', 'cp', 'tp'):
             try:
                 stats[attribute] = int(soup.select('.' + attribute)[0].text)
             except IndexError:
