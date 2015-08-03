@@ -239,15 +239,19 @@ class FFXIvScraper(Scraper):
             except AttributeError:
                 pass
 
-        # Minions
-        minions = []
-        for tag in soup.find(text='Minions').parent.parent.select('a'):
-            minions.append(tag['title'])
 
-        # Mounts
+        # minions and mounts both use "minion_box", which is stupid
+        minion_type = 0
+        minions = []
         mounts = []
-        for tag in soup.find(text='Mounts').parent.parent.select('a'):
-            mounts.append(tag['title'])
+        for minionbox in soup.select('.minion_box'):
+            for minionbox_entry in minionbox.select('a'):
+                if minion_type:
+                    minions.append(minionbox_entry['title'])
+                else:
+                    mounts.append(minionbox_entry['title'])
+            minion_type = 1
+
 
         # Equipment
         current_class = None
