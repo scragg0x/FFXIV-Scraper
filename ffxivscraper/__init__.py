@@ -166,7 +166,7 @@ class FFXIvScraper(Scraper):
             'sun': int(nameday[0]),
             'moon': (int(nameday[1]) * 2) - (0 if 'Umbral' in nameday_text else 1),
             }
-        guardian = soup.find(text='Guardian').parent.parent.select('dd')[0].text
+        guardian = soup.find(text='Guardian').parent.parent.select('dd')[3].text
 
         # City-state
         citystate = soup.find(text=re.compile('City-state')).parent.parent.select('dd.txt_name')[0].text
