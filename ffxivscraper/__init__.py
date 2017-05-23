@@ -15,9 +15,17 @@ FFXIV_PROPS = ['Defense', 'Parry', 'Magic Defense',
                'Accuracy', 'Critical Hit Rate', 'Determination',
                'Craftsmanship', 'Control']
 
+def debug_print(field, value):
+    debug = 0
+    if debug:
+        if value:
+            print field.upper() + " :: " + value
+        else:
+            print "NO VALUE FOR: " + field
+
 
 def strip_tags(html, invalid_tags):
-    soup = bs4.BeautifulSoup(html)
+    soup = bs4.BeautifulSoup(html, 'html.parser')
 
     for tag in soup.findAll(True):
         if tag.name in invalid_tags:
@@ -64,7 +72,7 @@ class FFXIvScraper(Scraper):
         r = self.make_request(url)
 
         news = []
-        soup = bs4.BeautifulSoup(r.content)
+        soup = bs4.BeautifulSoup(r.content, "html.parser")
         for tag in soup.select('.topics_list li'):
             entry = {}
             title_tag = tag.select('.topics_list_inner a')[0]
@@ -93,7 +101,7 @@ class FFXIvScraper(Scraper):
         if not r:
             return None
 
-        soup = bs4.BeautifulSoup(r.content)
+        soup = bs4.BeautifulSoup(r.content, "html.parser")
 
         for tag in soup.select('.player_name_area .player_name_gold a'):
             if tag.string.lower() == character_name.lower():
@@ -118,7 +126,7 @@ class FFXIvScraper(Scraper):
         if not r:
             return False
 
-        soup = bs4.BeautifulSoup(r.content)
+        soup = bs4.BeautifulSoup(r.content, "html.parser")
 
         page_name = soup.select('.player_name_txt h2 a')[0].text
         page_server = soup.select('.player_name_txt h2 span')[0].text
@@ -140,122 +148,147 @@ class FFXIvScraper(Scraper):
         if not r:
             raise DoesNotExist()
 
-        soup = bs4.BeautifulSoup(r.content)
+        soup = bs4.BeautifulSoup(r.content, "html.parser")
         
         character_link = '/lodestone/character/%s/' % lodestone_id
-        if character_link not in soup.select('.player_name_thumb a')[0]['href']:
+        if character_link not in soup.select('a.frame__chara__link')[0]['href']:
             raise DoesNotExist()
+        debug_print('character link', character_link)
 
         # Name, Server, Title
-        name = soup.select('.player_name_txt h2 a')[0].text.strip()
-        server = soup.select('.player_name_txt h2 span')[0].text.strip()[1:-1]
+        name = soup.select('p.frame__chara__name')[0].text.strip()
+        debug_print('name', name)
+        server = soup.select('p.frame__chara__world')[0].text.strip()
+        debug_print('server', server)
 
         try:
-            title = soup.select('.chara_title')[0].text.strip()
+            title = soup.select('p.frame__chara__title')[0].text.strip()
         except (AttributeError, IndexError):
             title = None
+        debug_print('title', title)
 
         # Race, Tribe, Gender
-        race, clan, gender = soup.select('.chara_profile_title')[0].text.split(' / ')
+        demographics = soup.find(text='Race/Clan/Gender').parent.parent
+        demographics.select('p.character-block__name')[0].select('br')[0].replace_with(' / ')
+        race, clan, gender = demographics.select('p.character-block__name')[0].text.split(' / ')
+        debug_print('race', race)
+        debug_print('clan', clan)
         gender = 'male' if gender.strip('\n\t')[-1] == u'\u2642' else 'female'
+        debug_print('gender', gender)
 
         # Nameday & Guardian
-        nameday_text = soup.find(text='Nameday').parent.parent.select('dd')[1].text
-        nameday = re.findall('(\d+)', nameday_text)
-        nameday = {
-            'sun': int(nameday[0]),
-            'moon': (int(nameday[1]) * 2) - (0 if 'Umbral' in nameday_text else 1),
-            }
-        guardian = soup.find(text='Guardian').parent.parent.select('dd')[3].text
+        nameday_guardian_block = soup.find(text='Nameday').parent.parent
+        nameday = nameday_guardian_block.select('p.character-block__birth')[0].text
+        debug_print('nameday', nameday)
+        guardian = nameday_guardian_block.select('p.character-block__name')[0].text
+        debug_print('guardian', guardian)
 
         # City-state
-        citystate = soup.find(text=re.compile('City-state')).parent.parent.select('dd.txt_name')[0].text
+        citystate = soup.find(text='City-state').parent.parent.select('p.character-block__name')[0].text
+        debug_print('citystate', citystate)
 
         # Grand Company
         try:
-            grand_company = soup.find(text=re.compile('Grand Company')).parent.parent.select('.txt_name')[0].text.split('/')
+            grand_company = soup.find_all(text='Grand Company')[1].parent.parent.select('p.character-block__name')[0].text.split('/')
+            debug_print('grand company affiliation', grand_company[0])
+            debug_print('grand company rank', grand_company[1])
         except (AttributeError, IndexError):
             grand_company = None
+            debug_print('grand company affiliation', grand_company)
+            debug_print('grand company rank', grand_company)
 
         # Free Company
         try:
             free_company = None
-            for elem in soup.select('.chara_profile_box_info'):
-                if 'Free Company' in elem.text:
-                    fc = elem.select('a.txt_yellow')[0]
-                    free_company = {
-                        'id': re.findall('(\d+)', fc['href'])[0],
-                        'name': fc.text,
-                        'crest': [x['src'] for x in elem.find('div', attrs={'class': 'ic_crest_32'}).findChildren('img')]
-                    }
-                    break
+            free_company_name_block = soup.select('div.character__freecompany__name')[0].find('h4').find('a')
+            free_company_crest_block = soup.select('div.character__freecompany__crest__image')[0]
+            free_company = {
+                'id': re.findall('(\d+)', free_company_name_block['href'])[0],
+                'name': free_company_name_block.text,
+                'crest': [x['src'] for x in free_company_crest_block.findChildren('img')]
+            }
+            debug_print('fc id', free_company['id'])
+            debug_print('fc name', free_company['name'])
+            # print free_company['crest']
         except (AttributeError, IndexError):
             free_company = None
+            debug_print('missing fc id', free_company)
+            debug_print('missing fc name', free_company)
+            debug_print('missing fc crest', free_company)
 
         # Classes
         classes = {}
-        for tag in soup.select('.class_list .ic_class_wh24_box'):
-            class_ = tag.text
+        for class_type in soup.select('ul.character__job'):
+            for job in class_type.find_all('li'):
+                job_name = job.select('div.character__job__name')[0].text
+                job_level = job.select('div.character__job__level')[0].text
+                job_exp_meter = job.select('div.character__job__exp')[0].text
+                job_exp = 0
+                job_exp_next = 0
+                debug_print('job name', job_name)
+                debug_print('job level', job_level)
+                debug_print('job exp meter', job_exp_meter)
+                if job_level == '-':
+                    job_level = 0
+                else:
+                    job_level = int(job_level)
+                    job_exp, job_exp_next = job_exp_meter.split(' / ')
+                debug_print('job exp', job_exp)
+                debug_print('job exp next', job_exp_next)
 
-            if not class_:
-                continue
-
-            level = tag.next_sibling.next_sibling.text
-
-            if level == '-':
-                level = 0
-                exp = 0
-                exp_next = 0
-            else:
-                level = int(level)
-                exp = int(tag.next_sibling.next_sibling.next_sibling.next_sibling.text.split(' / ')[0])
-                exp_next = int(tag.next_sibling.next_sibling.next_sibling.next_sibling.text.split(' / ')[1])
-
-            classes[class_] = dict(level=level, exp=exp, exp_next=exp_next)
+                classes[job_name] = dict(level=job_level, exp=job_exp, exp_next=job_exp_next)
 
         # Stats
         stats = {}
 
-        images = soup.select("img")
+        param_blocks = soup.select('table.character__param__list')
 
-        for img in images:
-            m = re.search('/images/character/attribute_([a-z]{3})', img.get('src'))
-            if m and m.group(1) and m.group(1) in ('str', 'dex', 'vit', 'int', 'mnd', 'pie'):
-                stats[m.group(1)] = img.parent.select("span")[0].text
+        for param_block in param_blocks:
+            stat_names = param_block.select('span')
+            for stat_name_th in stat_names:
+                stat_name = stat_name_th.text
+                stat_val = stat_name_th.parent.next_sibling.text
+                debug_print('stat_name: ', stat_name)
+                debug_print('stat_val: ', stat_val)
+                stats[stat_name] = stat_val
 
-        for attribute in ('hp', 'mp', 'cp', 'tp'):
+        for attribute in ('hp', 'mp', 'tp'):
             try:
-                stats[attribute] = int(soup.select('.' + attribute)[0].text)
+                stats[attribute] = int(soup.select('p.character__param__text__' + attribute + '--en-us')[0].next_sibling.text)
             except IndexError:
                 pass
+
         for element in FFXIV_ELEMENTS:
             tooltip = 'Decreases %s-aspected damage.' % element
-            ele_value = int(soup.find(title=tooltip).parent.select('.val')[0].text)
+            ele_value = int(soup.find(attrs={"data-tooltip": tooltip}).parent.text)
             stats[element] = ele_value
 
-        for prop in FFXIV_PROPS:
-            try:
-                stats[prop] = int(soup.find(text=prop, class_='left').parent.parent.select('.right')[0].text)
-            except AttributeError:
-                pass
-
-
-        # minions and mounts both use "minion_box", which is stupid
-        minion_type = 0
-        minions = []
         mounts = []
-        for minionbox in soup.select('.minion_box'):
-            for minionbox_entry in minionbox.select('a'):
-                if minion_type:
-                    minions.append(minionbox_entry['title'])
-                else:
-                    mounts.append(minionbox_entry['title'])
-            minion_type = 1
+        mount_box = soup.select('div.character__mounts')[0]
+        for mount in mount_box.select('li'):
+            mount_name = mount.select('div.character__item_icon')[0].get("data-tooltip")
+            mounts.append(mount_name)
 
+        minions = []
+        minion_box = soup.select('div.character__minion')[0]
+        for minion in minion_box.select('li'):
+            minion_name = minion.select('div.character__item_icon')[0].get("data-tooltip")
+            minions.append(minion_name)
 
         # Equipment
-        current_class = None
         parsed_equipment = []
+
+        equip_boxes = soup.select('.ic_reflection_box')
+        for equip_box in equip_boxes:
+            slot_p = equip_box.select('p.db-tooltip__item__category')
+            if len(slot_p) :
+                parsed_equip = {}
+                parsed_equip['slot'] = slot_p[0].text
+                parsed_equip['name'] = equip_box.select('h2.db-tooltip__item__name')[0].text
+                parsed_equip['img'] = equip_box.select('img.db-tooltip__item__icon__item_image')[0]['src']
+                parsed_equipment.append(parsed_equip)
+            else:
+                parsed_equipment.append({})
 
         for i, tag in enumerate(soup.select('.item_name_right')):
             item_tags = tag.select('.item_name')
@@ -269,7 +302,6 @@ class FFXIvScraper(Scraper):
                     slot_name = slot_name.replace("'s Arm", '')
                     slot_name = slot_name.replace("'s Primary Tool", '')
                     slot_name = slot_name.replace("'s Grimoire", '')
-                    current_class = slot_name
 
                 # strip out all the extra \t and \n it likes to throw in
                 parsed_equipment.append(' '.join(item_tags[0].text.split()))
@@ -289,8 +321,8 @@ class FFXIvScraper(Scraper):
 
             'legacy': len(soup.select('.bt_legacy_history')) > 0,
 
-            'avatar_url': soup.select('.player_name_txt .player_name_thumb img')[0]['src'],
-            'portrait_url': soup.select('.bg_chara_264 img')[0]['src'],
+            'avatar_url': soup.select('div.character__detail__image')[0].select('img')[0]['src'],
+            'portrait_url': soup.select('div.frame__chara__face')[0].select('img')[0]['src'],
 
             'nameday': nameday,
             'guardian': guardian,
@@ -308,9 +340,8 @@ class FFXIvScraper(Scraper):
             'minions': minions,
             'mounts': mounts,
 
-            'current_class': current_class,
             'current_equipment': equipment,
-            }
+        }
 
         return data
 
@@ -323,20 +354,21 @@ class FFXIvScraper(Scraper):
         if not r:
             return {}
 
-        soup = bs4.BeautifulSoup(r.content)
+        soup = bs4.BeautifulSoup(r.content, "html.parser")
 
         achievements = {}
-        for tag in soup.select('.achievement_list li'):
+        ach_block = soup.select('div.ldst__achievement')[0]
+        for tag in ach_block.select('li.entry'):
             achievement = {
-                'id': int(tag.select('.ic_achievement a')[0]['href'].split('/')[-2]),
-                'icon': tag.select('.ic_achievement img')[0]['src'],
-                'name': tag.select('.achievement_txt a')[0].text,
+                'id': int(tag.select('a.entry__achievement')[0]['href'].split('/')[-2]),
+                'icon': tag.select('div.entry__achievement__frame')[0].select('img')[0]['src'],
+                'name': tag.select('p.entry__activity__txt')[0].text.split('"')[1],
                 'date': int(re.findall(r'ldst_strftime\((\d+),', tag.find('script').text)[0])
             }
             achievements[achievement['id']] = achievement
 
         try:
-            pages = int(math.ceil(float(soup.select('.pagination .total')[0].text) / 20))
+            pages = int(math.ceil(float(int(soup.select('.parts__total')[0].text.split(' ')[0]) / 20)))
         except (ValueError, IndexError):
             pages = 0
 
@@ -352,7 +384,7 @@ class FFXIvScraper(Scraper):
         if 'The page you are searching for has either been removed,' in html:
             raise DoesNotExist()
 
-        soup = bs4.BeautifulSoup(html)
+        soup = bs4.BeautifulSoup(html, "html.parser")
 
         fc_tag = strip_tags(soup.select('.vm')[0].contents[-1].encode('utf-8'), ['br']).text
         fc_tag = fc_tag[1:-1] if fc_tag else ''
@@ -407,7 +439,7 @@ class FFXIvScraper(Scraper):
         if 'The page you are searching for has either been removed,' in html:
             raise DoesNotExist()
 
-        soup = bs4.BeautifulSoup(html)
+        soup = bs4.BeautifulSoup(html, "html.parser")
 
         try:
             name = soup.select('.ic_freecompany_box .pt4')[0].text
@@ -422,7 +454,7 @@ class FFXIvScraper(Scraper):
         def populate_roster(page=1, soup=None):
             if not soup:
                 r = self.make_request(url + '?page=%s' % page)
-                soup = bs4.BeautifulSoup(r.content)
+                soup = bs4.BeautifulSoup(r.content, "html.parser")
 
             for tag in soup.select('.player_name_area'):
                 if not tag.find('img'):
