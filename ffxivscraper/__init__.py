@@ -103,10 +103,10 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(r.content, "html.parser")
 
-        for tag in soup.select('.player_name_area .player_name_gold a'):
+        for tag in soup.select('p.entry__name'):
             if tag.string.lower() == character_name.lower():
                 return {
-                    'lodestone_id': re.findall(r'(\d+)', tag['href'])[0],
+                    'lodestone_id': tag.parent.parent['href'].split('/')[3],
                     'name': str(tag.string),
                     }
 
@@ -128,17 +128,15 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(r.content, "html.parser")
 
-        page_name = soup.select('.player_name_txt h2 a')[0].text
-        page_server = soup.select('.player_name_txt h2 span')[0].text
-        page_name = page_name.strip()
-        page_server = page_server.strip()[1:-1]
+        page_name = soup.select('p.frame__chara__name')[0].text.strip()
+        page_server = soup.select('p.frame__chara__world')[0].text.strip()
 
         if page_name != character_name or page_server != server_name:
             print "%s %s" % (page_name, page_server)
             print "Name mismatch"
             return False
 
-        return lodestone_id if soup.select('.txt_selfintroduction')[0].text.strip() == verification_code else False
+        return lodestone_id if soup.select('div.character__selfintroduction')[0].text.strip() == verification_code else False
 
     def scrape_character(self, lodestone_id):
         character_url = self.lodestone_url + '/character/%s/' % lodestone_id
@@ -386,54 +384,55 @@ class FFXIvScraper(Scraper):
 
         soup = bs4.BeautifulSoup(html, "html.parser")
 
-        fc_tag = strip_tags(soup.select('.vm')[0].contents[-1].encode('utf-8'), ['br']).text
+        fc_tag = soup.select('p.freecompany__text__tag')[0].text
         fc_tag = fc_tag[1:-1] if fc_tag else ''
-        formed = soup.select('.table_style2 td script')[0].text
 
-        crest = [x['src'] for x in soup.find('div', attrs={'class': 'ic_crest_64'}).findChildren('img')]
+        crest = [x['src'] for x in soup.find('div', attrs={'class': 'entry__freecompany__crest__image'}).findChildren('img')]
 
-        if formed:
-            m = re.search(r'ldst_strftime\(([0-9]+),', formed)
-            if m.group(1):
-                formed = m.group(1)
-        else:
-            formed = None
+        #formed = soup.find(string="Formed")
+        #if formed:
+        #    m = re.search(r'ldst_strftime\(([0-9]+),', formed)
+        #    if m.group(1):
+        #        formed = m.group(1)
+        #else:
+        #    formed = None
+        formed = None
 
-        slogan = soup.find(text='Company Slogan').parent.parent.select('td')[0].contents
-        slogan = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in slogan) if slogan else ""
+        slogan = soup.select('p.freecompany__text__message')[0].text
+        slogan = ''.join(x.encode('utf-8').replace('<br/>', '\n') for x in slogan) if slogan else ""
 
-        active = soup.find(text='Active').parent.parent.select('td')[0].text.strip()
-        recruitment = soup.find(text='Recruitment').parent.parent.select('td')[0].text.strip()
-        active_members = soup.find(text='Active Members').parent.parent.select('td')[0].text.strip()
-        rank = soup.find(text='Rank').parent.parent.select('td')[0].text.strip()
+        active = soup.find(text='Active').parent.next_sibling.next_sibling.text.strip()
+        recruitment = soup.find(text='Recruitment').parent.next_sibling.next_sibling.text.strip()
+        active_members = soup.find(text='Active Members').parent.next_sibling.next_sibling.text.strip()
+        rank = soup.find(text='Rank').parent.next_sibling.next_sibling.text.strip()
 
+        # skip this for now
         focus = []
-        for f in soup.select('.focus_icon li img'):
-            on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
-            focus.append(dict(on=on,
-                              name=f.get('title'),
-                              icon=f.get('src')))
+        #for f in soup.select('.focus_icon li img'):
+        #    on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
+        #    focus.append(dict(on=on,
+        #                      name=f.get('title'),
+        #                      icon=f.get('src')))
 
         seeking = []
-        for f in soup.select('.roles_icon li img'):
-            on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
-            seeking.append(dict(on=on,
-                                name=f.get('title'),
-                                icon=f.get('src')))
+        #for f in soup.select('.roles_icon li img'):
+        #    on = not (f.parent.get('class') and 'icon_off' in f.parent.get('class'))
+        #    seeking.append(dict(on=on,
+        #                        name=f.get('title'),
+        #                        icon=f.get('src')))
 
-        estate_block = soup.find(text='Estate Profile').parent.parent
-        if estate_block.select('td')[0].text.strip() != 'No Estate or Plot':
-            estate = dict()
-            estate['name'] = estate_block.select('.txt_yellow')[0].text
-            estate['address'] = estate_block.select('p.mb10')[0].text
+        #estate_block = soup.find(text='Estate Profile').parent.parent
+        #if estate_block.select('td')[0].text.strip() != 'No Estate or Plot':
+        #    estate = dict()
+        #    estate['name'] = estate_block.select('.txt_yellow')[0].text
+        #    estate['address'] = estate_block.select('p.mb10')[0].text
 
-            greeting = estate_block.select('p.mb10')[1].contents
-            estate['greeting'] = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in greeting) if greeting else ""
-        else:
-            estate = None
+        #    greeting = estate_block.select('p.mb10')[1].contents
+        #    estate['greeting'] = ''.join(x.encode('utf-8').strip().replace('<br/>', '\n') for x in greeting) if greeting else ""
+        #else:
+        estate = None
 
-        url = self.lodestone_url + '/freecompany/%s/member' % lodestone_id
-
+        url = self.lodestone_url + '/freecompany/%s/member/' % lodestone_id
         html = self.make_request(url).content
 
         if 'The page you are searching for has either been removed,' in html:
@@ -442,10 +441,9 @@ class FFXIvScraper(Scraper):
         soup = bs4.BeautifulSoup(html, "html.parser")
 
         try:
-            name = soup.select('.ic_freecompany_box .pt4')[0].text
-            server = soup.select('.ic_freecompany_box .crest_id span')[-1].text[1:-1]
-            grand_company = soup.select('.crest_id')[0].contents[0].strip()
-            friendship = soup.select('.friendship_color')[0].text[1:-1]
+            name = soup.select('p.entry__freecompany__name')[0].text.strip()
+            server = soup.select('p.entry__freecompany__gc')[1].text.strip()
+            grand_company = soup.select('p.entry__freecompany__gc')[0].text.strip()
         except IndexError:
             raise DoesNotExist()
 
@@ -456,18 +454,17 @@ class FFXIvScraper(Scraper):
                 r = self.make_request(url + '?page=%s' % page)
                 soup = bs4.BeautifulSoup(r.content, "html.parser")
 
-            for tag in soup.select('.player_name_area'):
+            for tag in soup.select('li.entry'):
                 if not tag.find('img'):
                     continue
 
-                name_anchor = tag.select('.player_name_gold')[0].find('a')
-
                 member = {
-                    'name': name_anchor.text,
-                    'lodestone_id': re.findall('(\d+)', name_anchor['href'])[0],
+                    'name': tag.select('p.entry__name')[0].text,
+                    'lodestone_id': tag.select('a.entry__bg')[0]['href'].split('/')[3],
                     'rank': {
-                        'id': int(re.findall('class/(\d+?)\.png', tag.find('img')['src'])[0]),
-                        'name': tag.select('.fc_member_status')[0].text.strip(),
+                        #'id': int(re.findall('class/(\d+?)\.png', tag.find('img')['src'])[0]),
+                        'id': 1,
+                        'name': tag.select('ul.entry__freecompany__info')[0].select('span')[0].text.strip(),
                         },
                     }
 
@@ -493,7 +490,6 @@ class FFXIvScraper(Scraper):
             'name': name,
             'server': server.lower(),
             'grand_company': grand_company,
-            'friendship': friendship,
             'roster': roster,
             'slogan': slogan,
             'tag': fc_tag,
