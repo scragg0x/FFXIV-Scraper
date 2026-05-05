@@ -1,5 +1,0 @@
-Werkzeug
-beautifulsoup4
-gevent
-requests
-docopt
